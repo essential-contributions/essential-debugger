@@ -5,7 +5,7 @@ use std::{
 };
 
 use anyhow::bail;
-use dialoguer::{theme::ColorfulTheme, BasicHistory, Confirm, FuzzySelect, History, Input};
+use dialoguer::{theme::ColorfulTheme, BasicHistory, Confirm, FuzzySelect, History, Input, Select};
 use essential_constraint_asm::Op;
 use essential_constraint_vm::{
     error::OpError, mut_keys_set, transient_data, Access, BytecodeMapped, OpAccess,
@@ -26,6 +26,7 @@ mod state_builder;
 const PROMPT: &str = "<essential-dbg>";
 const PRIMITIVES: &[&str] = &["int", "bool", "b256"];
 const COMPOUND: &[&str] = &["array", "tuple"];
+const SHOW: &[&str] = &["transient", "pre state", "post state"];
 
 pub struct ConstraintDebugger {
     stack: Stack,
@@ -91,6 +92,74 @@ pub async fn run(
             }
             "h t" | "help type" | "h type" | "help t" => {
                 out = types_msg();
+            }
+            "s" | "show" => {
+                let prompt = format!("{}::show", PROMPT);
+                let selection = FuzzySelect::with_theme(&ColorfulTheme::default())
+                    .with_prompt(&format!("What would you like to show?\n{}", prompt))
+                    .default(0)
+                    .items(SHOW)
+                    .interact()?;
+                match SHOW[selection] {
+                    "transient" => {
+                        let prompt = format!("{}::transient", prompt);
+                        let indices = (0..session.solution.data.len()).collect::<Vec<_>>();
+                        let selection = Select::with_theme(&ColorfulTheme::default())
+                            .with_prompt(&format!("Which solution data?\n{}", prompt))
+                            .default(0)
+                            .items(&indices)
+                            .interact()?;
+
+                        let prompt = format!("{}::{}", prompt, selection);
+                        let t = session
+                            .transient_data
+                            .get(&(selection as u16))
+                            .expect("Can't be out of bounds");
+                        let keys: Vec<String> = t
+                            .keys()
+                            .map(|k| {
+                                k.iter()
+                                    .map(|i| i.to_string())
+                                    .collect::<Vec<String>>()
+                                    .join(" ")
+                            })
+                            .collect();
+                        let selection = FuzzySelect::with_theme(&ColorfulTheme::default())
+                            .with_prompt(&format!("Which key would you like to show?\n{}", prompt))
+                            .default(0)
+                            .items(&keys)
+                            .interact()?;
+                        let key = keys[selection]
+                            .split(' ')
+                            .map(|i| i.parse().unwrap())
+                            .collect::<Vec<_>>();
+                        let v = t.get(&key).unwrap();
+                        out = format!("Transient data: {:?} => {:?}", key, v);
+                    }
+                    "pre state" => {
+                        let prompt = format!("{}::pre", prompt);
+                        let indices = (0..session.pre.len()).collect::<Vec<_>>();
+                        let selection = Select::with_theme(&ColorfulTheme::default())
+                            .with_prompt(&format!("Which slot would you like to show?\n{}", prompt))
+                            .default(0)
+                            .items(&indices)
+                            .interact()?;
+                        let v = &session.pre[selection];
+                        out = format!("Pre state slot {}: {:?}", selection, v);
+                    }
+                    "post state" => {
+                        let prompt = format!("{}::post", prompt);
+                        let indices = (0..session.post.len()).collect::<Vec<_>>();
+                        let selection = Select::with_theme(&ColorfulTheme::default())
+                            .with_prompt(&format!("Which slot would you like to show?\n{}", prompt))
+                            .default(0)
+                            .items(&indices)
+                            .interact()?;
+                        let v = &session.post[selection];
+                        out = format!("Post state slot {}: {:?}", selection, v);
+                    }
+                    _ => unreachable!(),
+                }
             }
             _ => {
                 let mut c = command.split(' ');
@@ -239,6 +308,7 @@ fn help_msg() -> String {
     p | play [i]: Play to ith op
     e | end: Play till end or error is hit
     l | list [start] [end]: List ops from start to end
+    s | show: Show transient data, pre state, or post state
     t | type <i> [type]: Parse the ith word in the stack as the given type. See `help type` for more info.
     q | quit | exit: Quit
     h | help: Show this message
@@ -314,7 +384,7 @@ fn handle_outcome(outcome: Outcome, out: &mut String) {
     match outcome {
         Outcome::ProgramEnd => end(out),
         Outcome::Panic(e) => {
-            *out = format!("Program panic: {:?}\n", e);
+            *out = format!("Program panic: {:?}\n{}", e, out);
         }
         Outcome::Step => (),
     }
@@ -428,7 +498,10 @@ impl Session<'_> {
         let result = match essential_constraint_vm::step_op(access, op, stack, memory, **pc, repeat)
         {
             Ok(r) => r,
-            Err(e) => return Ok(Outcome::Panic(e)),
+            Err(e) => {
+                *pos += 1;
+                return Ok(Outcome::Panic(e));
+            }
         };
         *pos += 1;
 

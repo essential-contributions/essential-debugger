@@ -1,1 +1,1 @@
-{"data":[{"intent_to_solve":{"set":"5qznGYm7Y5btL-pCvokHvcjlXCoUEGMY0sJi2Xihx4M","intent":"eLYEgi-KLtmG5F6oJ-zavM68JoHX6c6ccN9WGQjnUJc"},"decision_variables":[],"transient_data":[],"state_mutations":[{"key":[0,0,0,2],"value":[22]}]}]}
+{"data":[{"intent_to_solve":{"set":"5qznGYm7Y5btL-pCvokHvcjlXCoUEGMY0sJi2Xihx4M","intent":"eLYEgi-KLtmG5F6oJ-zavM68JoHX6c6ccN9WGQjnUJc"},"decision_variables":[],"transient_data":[{"key": [2, 3], "value":[12]}],"state_mutations":[{"key":[0,0,0,2],"value":[22]}]}]}
