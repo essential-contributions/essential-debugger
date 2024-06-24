@@ -1,14 +1,15 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     fmt::Display,
+    ops::Range,
 };
 
 use anyhow::bail;
 use dialoguer::{theme::ColorfulTheme, BasicHistory, Confirm, FuzzySelect, History, Input};
 use essential_constraint_asm::Op;
 use essential_constraint_vm::{
-    mut_keys_set, transient_data, Access, BytecodeMapped, OpAccess, ProgramControlFlow, Repeat,
-    SolutionAccess, Stack, StateSlotSlice, StateSlots, TransientData,
+    error::OpError, mut_keys_set, transient_data, Access, BytecodeMapped, OpAccess,
+    ProgramControlFlow, Repeat, SolutionAccess, Stack, StateSlotSlice, StateSlots, TransientData,
 };
 use essential_types::{
     intent::Intent,
@@ -57,6 +58,7 @@ pub struct Session<'a> {
 pub enum Outcome {
     ProgramEnd,
     Step,
+    Panic(OpError),
 }
 
 pub async fn run(
@@ -82,6 +84,7 @@ pub async fn run(
         match command.as_str() {
             "n" | "next" => session.next(&mut out)?,
             "b" | "back" => session.back(&mut out)?,
+            "e" | "end" => session.play_till_error(&mut out)?,
             "q" | "quit" | "exit" => break,
             "h" | "help" => {
                 out = help_msg();
@@ -103,6 +106,11 @@ pub async fn run(
                             .and_then(|i| i.parse::<usize>().ok())
                             .unwrap_or_default();
                         session.play(i, &mut out)?;
+                    }
+                    "l" | "list" => {
+                        let start = c.next().and_then(|i| i.parse::<isize>().ok()).unwrap_or(0);
+                        let end = c.next().and_then(|i| i.parse::<isize>().ok()).unwrap_or(10);
+                        session.list(start..end, &mut out);
                     }
                     "t" | "type" => {
                         let rest = c.filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" ");
@@ -229,6 +237,8 @@ fn help_msg() -> String {
     n | next: Step forward
     b | back: Step back
     p | play [i]: Play to ith op
+    e | end: Play till end or error is hit
+    l | list [start] [end]: List ops from start to end
     t | type <i> [type]: Parse the ith word in the stack as the given type. See `help type` for more info.
     q | quit | exit: Quit
     h | help: Show this message
@@ -303,6 +313,9 @@ impl ConstraintDebugger {
 fn handle_outcome(outcome: Outcome, out: &mut String) {
     match outcome {
         Outcome::ProgramEnd => end(out),
+        Outcome::Panic(e) => {
+            *out = format!("Program panic: {:?}\n", e);
+        }
         Outcome::Step => (),
     }
 }
@@ -344,6 +357,36 @@ impl Session<'_> {
         Ok(())
     }
 
+    pub fn play_till_error(&mut self, out: &mut String) -> anyhow::Result<()> {
+        loop {
+            match self.step_forward()? {
+                Outcome::Step => (),
+                Outcome::ProgramEnd => match &self.stack[..] {
+                    [1] => {
+                        *out = format!("Program ended successfully.\n{}", self);
+                        break;
+                    }
+                    [0] => {
+                        *out = format!("Program ended with false!\n{}", self);
+                        break;
+                    }
+                    _ => {
+                        *out = format!(
+                            "Program ended with unexpected stack: {:?}\n{}",
+                            self.stack, self
+                        );
+                        break;
+                    }
+                },
+                Outcome::Panic(e) => {
+                    *out = format!("Program panic: {:?}\n{}", e, self);
+                    break;
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub fn step_forward(&mut self) -> anyhow::Result<Outcome> {
         let Self {
             code,
@@ -382,7 +425,11 @@ impl Session<'_> {
 
         last_op.replace(op);
 
-        let result = essential_constraint_vm::step_op(access, op, stack, memory, **pc, repeat)?;
+        let result = match essential_constraint_vm::step_op(access, op, stack, memory, **pc, repeat)
+        {
+            Ok(r) => r,
+            Err(e) => return Ok(Outcome::Panic(e)),
+        };
         *pos += 1;
 
         match result {
@@ -404,6 +451,7 @@ impl Session<'_> {
         for _ in 0..i {
             match self.step_forward()? {
                 Outcome::ProgramEnd => return Ok(Outcome::ProgramEnd),
+                Outcome::Panic(e) => return Ok(Outcome::Panic(e)),
                 Outcome::Step => {
                     out = Some(Outcome::Step);
                 }
@@ -413,6 +461,33 @@ impl Session<'_> {
             bail!("Program didn't run");
         };
         Ok(out)
+    }
+
+    pub fn list(&self, range: Range<isize>, out: &mut String) {
+        use std::fmt::Write;
+        let start = (self.pos as isize).saturating_add(range.start).max(0) as usize;
+        let end = (self.pos as isize).saturating_add(range.end).max(0) as usize;
+        let len = end.saturating_sub(start);
+        let this_op = (start..end)
+            .contains(&self.pos)
+            .then_some(self.pos.saturating_sub(start));
+        if let Some(ops) = &self.code.ops_from(start) {
+            *out = ops
+                .ops()
+                .take(len)
+                .enumerate()
+                .fold(String::new(), |mut out, (i, op)| {
+                    match &this_op {
+                        Some(this_op) if *this_op == i => {
+                            let _ = writeln!(out, "Op: {:?}", dialoguer::console::style(op).cyan());
+                        }
+                        _ => {
+                            let _ = writeln!(out, "Op: {:?}", op);
+                        }
+                    }
+                    out
+                });
+        }
     }
 
     pub fn parse_type(&self, ty: &str) -> String {
