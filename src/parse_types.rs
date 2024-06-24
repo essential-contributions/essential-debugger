@@ -120,6 +120,15 @@ fn parse_primitive(words: &[Word], ty: &str, force_hex: bool) -> String {
             let bytes: Vec<u8> = words.iter().flat_map(|w| bytes_from_word(*w)).collect();
             hex::encode_upper(bytes)
         }
-        _ => String::new(),
+        _ => {
+            dialoguer::console::Term::stdout()
+                .write_line(&format!(
+                    "{}, is not one of the valid types: {:?}",
+                    dialoguer::console::style(ty.trim()).red(),
+                    super::PRIMITIVES
+                ))
+                .ok();
+            String::new()
+        }
     }
 }

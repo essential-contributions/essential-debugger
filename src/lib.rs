@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::bail;
+use dialoguer::{theme::ColorfulTheme, BasicHistory, Confirm, FuzzySelect, History, Input};
 use essential_constraint_asm::Op;
 use essential_constraint_vm::{
     mut_keys_set, transient_data, Access, BytecodeMapped, OpAccess, ProgramControlFlow, Repeat,
@@ -14,11 +15,16 @@ use essential_types::{
     solution::{Solution, SolutionDataIndex},
     ContentAddress, Key, Value, Word,
 };
-use inquire::{InquireError, Text};
 
-mod autocomplete;
+pub use state_builder::StateBuilder;
+
 mod parse_types;
 mod state;
+mod state_builder;
+
+const PROMPT: &str = "<essential-dbg>";
+const PRIMITIVES: &[&str] = &["int", "bool", "b256"];
+const COMPOUND: &[&str] = &["array", "tuple"];
 
 pub struct ConstraintDebugger {
     stack: Stack,
@@ -65,19 +71,13 @@ pub async fn run(
 
     let mut out = String::new();
 
-    let auto = autocomplete::Auto::default();
+    let mut history = BasicHistory::new().max_entries(20).no_duplicates(true);
 
     loop {
-        let command = Text::new(&format!("{}\n<essential-dbg>", out))
-            .with_autocomplete(auto.clone())
-            .with_page_size(1)
-            .prompt();
-        let command = match command {
-            Ok(c) => c,
-            Err(InquireError::OperationCanceled) | Err(InquireError::OperationInterrupted) => break,
-            Err(e) => bail!("Error: {:?}", e),
-        };
-        auto.update_history(&command);
+        let command: String = Input::with_theme(&ColorfulTheme::default())
+            .with_prompt(&format!("{}\n{}", out, PROMPT))
+            .history_with(&mut history)
+            .interact_text()?;
 
         match command.as_str() {
             "n" | "next" => session.next(&mut out)?,
@@ -105,8 +105,109 @@ pub async fn run(
                         session.play(i, &mut out)?;
                     }
                     "t" | "type" => {
-                        let rest = c.collect::<Vec<_>>().join(" ");
-                        out = session.parse_type(&rest);
+                        let rest = c.filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" ");
+                        if rest.is_empty() {
+                            let prompt = format!("{}::type", PROMPT);
+                            let pos: String = Input::with_theme(&ColorfulTheme::default())
+                                .with_prompt(&format!("Enter position\n{}", prompt))
+                                .default("0".to_string())
+                                .history_with(&mut history)
+                                .interact_text()?;
+                            let pos: usize = pos.trim().parse().unwrap_or_default();
+
+                            let prompt = format!("{}::{}", prompt, pos);
+                            let mut options = PRIMITIVES.to_vec();
+                            options.extend_from_slice(COMPOUND);
+
+                            let selection = FuzzySelect::with_theme(&ColorfulTheme::default())
+                                .with_prompt(&format!("Select type\n{}", prompt))
+                                .default(0)
+                                .items(&options[..])
+                                .interact()?;
+                            if PRIMITIVES.contains(&options[selection]) {
+                                let input = format!("{} {}", pos, &options[selection]);
+                                out = session.parse_type(&input);
+                            } else {
+                                let prompt = format!("{}::{}", prompt, options[selection]);
+                                let input =
+                                    match options[selection] {
+                                        "array" => {
+                                            let selection =
+                                                FuzzySelect::with_theme(&ColorfulTheme::default())
+                                                    .with_prompt(&format!(
+                                                        "Select array type\n{}",
+                                                        prompt
+                                                    ))
+                                                    .default(0)
+                                                    .items(PRIMITIVES)
+                                                    .interact()?;
+
+                                            let prompt =
+                                                format!("{}::{}", prompt, PRIMITIVES[selection]);
+                                            let len: String =
+                                                Input::with_theme(&ColorfulTheme::default())
+                                                    .with_prompt(&format!(
+                                                        "Enter array length\n{}",
+                                                        prompt
+                                                    ))
+                                                    .default("1".to_string())
+                                                    .history_with(&mut history)
+                                                    .interact_text()?;
+                                            let len: usize = len.trim().parse().unwrap_or_default();
+                                            format!("{} {}[{}]", pos, PRIMITIVES[selection], len)
+                                        }
+                                        "tuple" => {
+                                            let mut fields = String::new();
+                                            let mut add_field = true;
+                                            while add_field {
+                                                let p = format!("{}::{{ {} }}", prompt, fields);
+                                                let selection = FuzzySelect::with_theme(
+                                                    &ColorfulTheme::default(),
+                                                )
+                                                .with_prompt(&format!("Select field type\n{}", p))
+                                                .default(0)
+                                                .items(PRIMITIVES)
+                                                .interact()?;
+
+                                                fields.push_str(PRIMITIVES[selection]);
+
+                                                let p = format!("{}::{{ {} }}", prompt, fields);
+
+                                                add_field =
+                                                    Confirm::with_theme(&ColorfulTheme::default())
+                                                        .with_prompt(&format!(
+                                                            "Do you want to add another field?\n{}",
+                                                            p
+                                                        ))
+                                                        .default(true)
+                                                        .interact()?;
+                                                if add_field {
+                                                    fields.push_str(", ");
+                                                }
+                                            }
+                                            format!("{} {{ {} }}", pos, fields)
+                                        }
+                                        _ => unreachable!(),
+                                    };
+
+                                let force_hex = Confirm::with_theme(&ColorfulTheme::default())
+                                    .with_prompt(&format!(
+                                        "Do you want to force HEX formatting?\n{}",
+                                        prompt
+                                    ))
+                                    .default(false)
+                                    .interact()?;
+                                let input = if force_hex {
+                                    format!("{} HEX", input)
+                                } else {
+                                    input
+                                };
+                                history.write(&format!("t {}", input));
+                                out = session.parse_type(&input);
+                            }
+                        } else {
+                            out = session.parse_type(&rest);
+                        }
                     }
                     _ => {
                         out = format!("Unknown command: {}", command);
