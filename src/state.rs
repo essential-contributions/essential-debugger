@@ -8,7 +8,7 @@ use essential_constraint_vm::{
 };
 use essential_state_read_vm::{GasLimit, StateRead};
 use essential_types::{
-    intent::Intent,
+    predicate::Predicate,
     solution::{Solution, SolutionDataIndex},
     ContentAddress, Key, Value, Word,
 };
@@ -23,7 +23,7 @@ struct State(HashMap<ContentAddress, BTreeMap<Key, Value>>);
 pub async fn read_state(
     solution: &Solution,
     index: SolutionDataIndex,
-    intent: &Intent,
+    predicate: &Predicate,
     state: HashMap<ContentAddress, BTreeMap<Key, Value>>,
 ) -> anyhow::Result<Slots> {
     let pre_state = State(state.clone());
@@ -35,7 +35,7 @@ pub async fn read_state(
     let mut post_slots: Vec<Vec<Word>> = Vec::new();
     let mutable_keys = mut_keys_set(solution, index);
     let transient_data = transient_data(solution);
-    for sr in &intent.state_read {
+    for sr in &predicate.state_read {
         let access = Access {
             solution: SolutionAccess::new(solution, index, &mutable_keys, &transient_data),
             state_slots: StateSlots {
@@ -141,7 +141,7 @@ impl State {
         for data in &solution.data {
             for mutation in data.state_mutations.iter() {
                 self.set(
-                    data.intent_to_solve.set.clone(),
+                    data.predicate_to_solve.contract.clone(),
                     &mutation.key,
                     mutation.value.clone(),
                 );

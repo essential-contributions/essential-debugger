@@ -2,7 +2,8 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 use essential_types::{
-    intent::{Intent, SignedSet},
+    contract::{Contract, SignedContract},
+    predicate::Predicate,
     solution::Solution,
 };
 
@@ -12,9 +13,9 @@ struct Cli {
     /// Which solution data index to debug
     #[arg(short, long, default_value_t = 0)]
     solution_data_index: usize,
-    /// Which intent to debug
+    /// Which predicate to debug
     #[arg(short, long, default_value_t = 0)]
-    intent_index: usize,
+    predicate_index: usize,
     /// Which constraint to debug
     #[arg(short, long, default_value_t = 0)]
     constraint_index: usize,
@@ -27,17 +28,17 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    Intent {
-        /// Path to the individual intent file encoded in JSON
-        intent: PathBuf,
+    Predicate {
+        /// Path to the individual predicate file encoded in JSON
+        predicate: PathBuf,
     },
-    Intents {
-        /// Path to a list of intents file encoded in JSON
-        intents: PathBuf,
+    Contract {
+        /// Path to a contract file encoded in JSON
+        contract: PathBuf,
     },
-    SignedIntent {
-        /// Path to a signed intents file encoded in JSON
-        intents: PathBuf,
+    SignedContract {
+        /// Path to a signed contract file encoded in JSON
+        contract: PathBuf,
     },
 }
 
@@ -53,31 +54,35 @@ async fn run(args: Cli) -> anyhow::Result<()> {
     // TODO state.
     let Cli {
         solution_data_index,
-        intent_index,
+        predicate_index,
         constraint_index,
         solution,
         command,
     } = args;
-    let intents: Vec<Intent> = match command {
-        Command::Intent { intent } => {
-            vec![serde_json::from_slice(&tokio::fs::read(intent).await?)?]
+    let predicates: Vec<Predicate> = match command {
+        Command::Predicate { predicate } => {
+            vec![serde_json::from_slice(&tokio::fs::read(predicate).await?)?]
         }
-        Command::Intents { intents } => serde_json::from_slice(&tokio::fs::read(intents).await?)?,
-        Command::SignedIntent { intents } => {
-            let intents: SignedSet = serde_json::from_slice(&tokio::fs::read(intents).await?)?;
-            intents.set
+        Command::Contract { contract } => {
+            let contract: Contract = serde_json::from_slice(&tokio::fs::read(contract).await?)?;
+            contract.predicates
+        }
+        Command::SignedContract { contract } => {
+            let contract: SignedContract =
+                serde_json::from_slice(&tokio::fs::read(contract).await?)?;
+            contract.contract.predicates
         }
     };
 
     let solution: Solution = serde_json::from_slice(&tokio::fs::read(solution).await?)?;
-    let intent = intents
-        .get(intent_index)
-        .ok_or_else(|| anyhow::anyhow!("Intent not found"))?
+    let predicate = predicates
+        .get(predicate_index)
+        .ok_or_else(|| anyhow::anyhow!("Predicate not found"))?
         .clone();
     essential_debugger::run(
         solution,
         solution_data_index as u16,
-        intent,
+        predicate,
         constraint_index,
         Default::default(),
     )

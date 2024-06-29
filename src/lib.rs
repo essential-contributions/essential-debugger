@@ -12,16 +12,13 @@ use essential_constraint_vm::{
     ProgramControlFlow, Repeat, SolutionAccess, Stack, StateSlotSlice, StateSlots, TransientData,
 };
 use essential_types::{
-    intent::Intent,
+    predicate::Predicate,
     solution::{Solution, SolutionDataIndex},
     ContentAddress, Key, Value, Word,
 };
 
-pub use state_builder::StateBuilder;
-
 mod parse_types;
 mod state;
-mod state_builder;
 
 const PROMPT: &str = "<essential-dbg>";
 const PRIMITIVES: &[&str] = &["int", "bool", "b256"];
@@ -65,11 +62,12 @@ pub enum Outcome {
 pub async fn run(
     solution: Solution,
     index: SolutionDataIndex,
-    intent: Intent,
+    predicate: Predicate,
     constraint: usize,
     state: HashMap<ContentAddress, BTreeMap<Key, Value>>,
 ) -> anyhow::Result<()> {
-    let mut debugger = ConstraintDebugger::new(solution, index, intent, constraint, state).await?;
+    let mut debugger =
+        ConstraintDebugger::new(solution, index, predicate, constraint, state).await?;
     let mut session = debugger.start_session();
 
     let mut out = String::new();
@@ -352,13 +350,13 @@ impl ConstraintDebugger {
     pub async fn new(
         solution: Solution,
         index: SolutionDataIndex,
-        intent: Intent,
+        predicate: Predicate,
         constraint: usize,
         state: HashMap<ContentAddress, BTreeMap<Key, Value>>,
     ) -> anyhow::Result<Self> {
-        let slots = state::read_state(&solution, index, &intent, state.clone()).await?;
+        let slots = state::read_state(&solution, index, &predicate, state.clone()).await?;
 
-        let Some(code) = intent.constraints.get(constraint).cloned() else {
+        let Some(code) = predicate.constraints.get(constraint).cloned() else {
             bail!("No constraint found");
         };
 

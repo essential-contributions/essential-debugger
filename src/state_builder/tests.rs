@@ -1,4 +1,4 @@
-use essential_types::intent::Directive;
+use essential_types::predicate::Directive;
 
 use super::*;
 
@@ -7,7 +7,7 @@ fn test_name() {
     let state = StateBuilder::new()
         .with_contract(
             "a",
-            &[Intent {
+            &[Predicate {
                 state_read: Default::default(),
                 constraints: Default::default(),
                 directive: Directive::Satisfy,
@@ -15,7 +15,7 @@ fn test_name() {
         )
         .with_contract(
             "b",
-            &[Intent {
+            &[Predicate {
                 state_read: Default::default(),
                 constraints: vec![vec![1]],
                 directive: Directive::Satisfy,
@@ -36,8 +36,8 @@ fn test_name() {
         .push("b")
         .with_index(5)
         .with_bool(true);
-    let a = state.intents.get("a").unwrap().clone();
-    let b = state.intents.get("b").unwrap().clone();
+    let a = state.predicates.get("a").unwrap().clone();
+    let b = state.predicates.get("b").unwrap().clone();
 
     let state = state.build();
 

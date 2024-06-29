@@ -2,14 +2,14 @@ use essential_constraint_vm as constraint_vm;
 use essential_sign::secp256k1::{PublicKey, Secp256k1, SecretKey};
 use essential_state_read_vm as state_read_vm;
 use essential_types::{
-    intent::{Directive, Intent},
+    predicate::{Directive, Predicate},
     solution::{Mutation, Solution, SolutionData},
-    ContentAddress, IntentAddress,
+    PredicateAddress,
 };
 
 #[tokio::test]
 async fn test_debugger() {
-    let intent = Intent {
+    let predicate = Predicate {
         // State read program to read state slot 0.
         state_read: vec![state_read_vm::asm::to_bytes([
             state_read_vm::asm::Stack::Push(1).into(),
@@ -22,7 +22,7 @@ async fn test_debugger() {
             state_read_vm::asm::Stack::Push(1).into(),
             state_read_vm::asm::Stack::Push(0).into(),
             state_read_vm::asm::StateRead::KeyRange,
-            state_read_vm::asm::ControlFlow::Halt.into(),
+            state_read_vm::asm::TotalControlFlow::Halt.into(),
         ])
         .collect()],
         // Program to check pre-mutation value is None and
@@ -53,10 +53,10 @@ async fn test_debugger() {
     };
 
     let (sk, _pk) = random_keypair([0; 32]);
-    let intents = essential_sign::intent_set::sign(vec![intent.clone()], &sk);
-    let intent_addr = IntentAddress {
-        set: essential_hash::intent_set_addr::from_intents(&intents.set),
-        intent: ContentAddress(essential_hash::hash(&intents.set[0])),
+    let contract = essential_sign::contract::sign(vec![predicate.clone()].into(), &sk);
+    let predicate_addr = PredicateAddress {
+        contract: essential_hash::contract_addr::from_contract(&contract.contract),
+        predicate: essential_hash::content_addr(&contract.contract.predicates[0]),
     };
 
     // Construct the solution decision variables.
@@ -66,7 +66,7 @@ async fn test_debugger() {
     // Create the solution.
     let solution = Solution {
         data: vec![SolutionData {
-            intent_to_solve: intent_addr,
+            predicate_to_solve: predicate_addr,
             decision_variables,
             state_mutations: vec![Mutation {
                 key: vec![0, 0, 0, 0],
@@ -76,7 +76,7 @@ async fn test_debugger() {
         }],
     };
 
-    essential_debugger::run(solution, 0, intent, 0, Default::default())
+    essential_debugger::run(solution, 0, predicate, 0, Default::default())
         .await
         .unwrap();
 }
