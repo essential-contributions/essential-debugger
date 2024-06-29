@@ -26,7 +26,7 @@ mod state_builder;
 const PROMPT: &str = "<essential-dbg>";
 const PRIMITIVES: &[&str] = &["int", "bool", "b256"];
 const COMPOUND: &[&str] = &["array", "tuple"];
-const SHOW: &[&str] = &["transient", "pre state", "post state"];
+const SHOW: &[&str] = &["transient", "pre state", "post state", "decision vars"];
 
 pub struct ConstraintDebugger {
     stack: Stack,
@@ -157,6 +157,24 @@ pub async fn run(
                             .interact()?;
                         let v = &session.post[selection];
                         out = format!("Post state slot {}: {:?}", selection, v);
+                    }
+                    "decision vars" => {
+                        let prompt = format!("{}::decision_vars", prompt);
+                        let indices = (0..session.solution.data[index as usize]
+                            .decision_variables
+                            .len())
+                            .collect::<Vec<_>>();
+                        let selection = Select::with_theme(&ColorfulTheme::default())
+                            .with_prompt(&format!(
+                                "Which solution data slot would you like to show?\n{}",
+                                prompt
+                            ))
+                            .default(0)
+                            .items(&indices)
+                            .interact()?;
+                        let v =
+                            &session.solution.data[index as usize].decision_variables[selection];
+                        out = format!("Decision variable {}: {:?}", selection, v);
                     }
                     _ => unreachable!(),
                 }
