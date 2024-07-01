@@ -17,7 +17,10 @@ use essential_types::{
     ContentAddress, Key, Value, Word,
 };
 
+pub use source::Source;
+
 mod parse_types;
+mod source;
 mod state;
 
 const PROMPT: &str = "<essential-dbg>";
@@ -59,12 +62,34 @@ pub enum Outcome {
     Panic(OpError),
 }
 
+pub async fn run_with_source(
+    solution: Solution,
+    index: SolutionDataIndex,
+    predicate: Predicate,
+    constraint: usize,
+    state: HashMap<ContentAddress, BTreeMap<Key, Value>>,
+    source: Source,
+) -> anyhow::Result<()> {
+    run_inner(solution, index, predicate, constraint, state, Some(source)).await
+}
+
 pub async fn run(
     solution: Solution,
     index: SolutionDataIndex,
     predicate: Predicate,
     constraint: usize,
     state: HashMap<ContentAddress, BTreeMap<Key, Value>>,
+) -> anyhow::Result<()> {
+    run_inner(solution, index, predicate, constraint, state, None).await
+}
+
+async fn run_inner(
+    solution: Solution,
+    index: SolutionDataIndex,
+    predicate: Predicate,
+    constraint: usize,
+    state: HashMap<ContentAddress, BTreeMap<Key, Value>>,
+    source: Option<Source>,
 ) -> anyhow::Result<()> {
     let mut debugger =
         ConstraintDebugger::new(solution, index, predicate, constraint, state).await?;
@@ -90,6 +115,9 @@ pub async fn run(
             }
             "h t" | "help type" | "h type" | "help t" => {
                 out = types_msg();
+            }
+            "h c" | "help code" | "h code" | "help c" => {
+                out = help_code();
             }
             "s" | "show" => {
                 let prompt = format!("{}::show", PROMPT);
@@ -192,11 +220,14 @@ pub async fn run(
                             .unwrap_or_default();
                         session.play(i, &mut out)?;
                     }
-                    "l" | "list" => {
-                        let start = c.next().and_then(|i| i.parse::<isize>().ok()).unwrap_or(0);
-                        let end = c.next().and_then(|i| i.parse::<isize>().ok()).unwrap_or(10);
-                        session.list(start..end, &mut out);
-                    }
+                    "l" | "list" => match c.next() {
+                        Some(i) => {
+                            let start = i.parse::<isize>().unwrap_or(0);
+                            let end = c.next().and_then(|i| i.parse::<isize>().ok()).unwrap_or(10);
+                            session.list_range(start..end, &mut out);
+                        }
+                        None => session.list(&mut out),
+                    },
                     "t" | "type" => {
                         let rest = c.filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" ");
                         if rest.is_empty() {
@@ -302,6 +333,9 @@ pub async fn run(
                             out = session.parse_type(&rest);
                         }
                     }
+                    "c" | "code" => {
+                        out = source::show_code(&source, c.next().into());
+                    }
                     _ => {
                         out = format!("Unknown command: {}", command);
                     }
@@ -325,6 +359,7 @@ fn help_msg() -> String {
     e | end: Play till end or error is hit
     l | list [start] [end]: List ops from start to end
     s | show: Show transient data, pre state, or post state
+    c | code: Show source code. See `help code` for more info.
     t | type <i> [type]: Parse the ith word in the stack as the given type. See `help type` for more info.
     q | quit | exit: Quit
     h | help: Show this message
@@ -342,6 +377,21 @@ fn types_msg() -> String {
     `b256` is always printed as hex. 
     You can force hex formatting by adding `HEX` to the end of the command.
     e.g. `t 1 int HEX`
+    "#
+    .to_string()
+}
+
+fn help_code() -> String {
+    r#"Shows source code if present.
+    c | code: equivalent to `code constraint`.
+    `code` can be followed by:
+    Commands:
+    a | all: Show all source code
+    p | predicate: Show predicate source code
+    c | constraint: Show predicate source code with only the constraint
+        that is being debugged. Constraint line number is required.
+    co | constraint_only: Show only the constraint line.
+        Constraint line number is required.
     "#
     .to_string()
 }
@@ -552,7 +602,7 @@ impl Session<'_> {
         Ok(out)
     }
 
-    pub fn list(&self, range: Range<isize>, out: &mut String) {
+    pub fn list_range(&self, range: Range<isize>, out: &mut String) {
         use std::fmt::Write;
         let start = (self.pos as isize).saturating_add(range.start).max(0) as usize;
         let end = (self.pos as isize).saturating_add(range.end).max(0) as usize;
@@ -573,6 +623,23 @@ impl Session<'_> {
                         _ => {
                             let _ = writeln!(out, "Op: {:?}", op);
                         }
+                    }
+                    out
+                });
+        }
+    }
+
+    pub fn list(&self, out: &mut String) {
+        use std::fmt::Write;
+        if let Some(ops) = &self.code.ops_from(0) {
+            *out = ops
+                .ops()
+                .enumerate()
+                .fold(String::new(), |mut out, (i, op)| {
+                    if self.pos == i {
+                        let _ = writeln!(out, "Op: {:?}", dialoguer::console::style(op).cyan());
+                    } else {
+                        let _ = writeln!(out, "Op: {:?}", op);
                     }
                     out
                 });

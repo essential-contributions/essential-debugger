@@ -1,4 +1,5 @@
 use essential_constraint_vm as constraint_vm;
+use essential_debugger::Source;
 use essential_sign::secp256k1::{PublicKey, Secp256k1, SecretKey};
 use essential_state_read_vm as state_read_vm;
 use essential_types::{
@@ -76,7 +77,25 @@ async fn test_debugger() {
         }],
     };
 
-    essential_debugger::run(solution, 0, predicate, 0, Default::default())
+    let other_source = r#"
+const ::foo::FOO: int = 1;
+    "#;
+    let predicate_source = r#"
+predicate ::Foo {
+    storage {
+        bar: ( b256 => int ),
+    }
+    pub var ::baz: int;
+    constraint (::baz == 42);
+    constraint (::baz == 1);
+}
+    "#;
+
+    let source = Source::default()
+        .with_other_code(other_source)
+        .with_predicate_find_line(predicate_source, 1);
+
+    essential_debugger::run_with_source(solution, 0, predicate, 0, Default::default(), source)
         .await
         .unwrap();
 }
