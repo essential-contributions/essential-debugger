@@ -618,10 +618,15 @@ impl Session<'_> {
                 .fold(String::new(), |mut out, (i, op)| {
                     match &this_op {
                         Some(this_op) if *this_op == i => {
-                            let _ = writeln!(out, "Op: {:?}", dialoguer::console::style(op).cyan());
+                            let _ = writeln!(
+                                out,
+                                "{}:Op: {:?}",
+                                start + i,
+                                dialoguer::console::style(op).cyan()
+                            );
                         }
                         _ => {
-                            let _ = writeln!(out, "Op: {:?}", op);
+                            let _ = writeln!(out, "{}:Op: {:?}", start + i, op);
                         }
                     }
                     out
@@ -637,9 +642,10 @@ impl Session<'_> {
                 .enumerate()
                 .fold(String::new(), |mut out, (i, op)| {
                     if self.pos == i {
-                        let _ = writeln!(out, "Op: {:?}", dialoguer::console::style(op).cyan());
+                        let _ =
+                            writeln!(out, "{}:Op: {:?}", i, dialoguer::console::style(op).cyan());
                     } else {
-                        let _ = writeln!(out, "Op: {:?}", op);
+                        let _ = writeln!(out, "{}:Op: {:?}", i, op);
                     }
                     out
                 });
