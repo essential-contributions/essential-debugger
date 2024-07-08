@@ -2,18 +2,23 @@
 edition = "2021"
 name = "essential-debugger"
 version = "0.1.0"
+description = "An experimental constraint debugger for the Essential constraint checking engine"
+authors = ["Essential Contributions <contact@essentialcontributions.com>"]
+homepage = "https://essential.builders/"
+license = "Apache-2.0"
+repository = "https://github.com/essential-contributions/essential-debugger"
 
 [dependencies]
 anyhow = "1.0.86"
 clap = { version = "4.5.4", features = ["derive"] }
 dialoguer = { version = "0.11.0", features = ["fuzzy-select", "history"] }
-essential-constraint-asm = { git = "ssh://git@github.com/essential-contributions/essential-base.git" }
-essential-constraint-vm = { git = "ssh://git@github.com/essential-contributions/essential-base.git" }
-essential-hash = { git = "ssh://git@github.com/essential-contributions/essential-base.git" }
-essential-sign = { git = "ssh://git@github.com/essential-contributions/essential-base.git" }
-essential-state-asm = { git = "ssh://git@github.com/essential-contributions/essential-base.git" }
-essential-state-read-vm = { git = "ssh://git@github.com/essential-contributions/essential-base.git" }
-essential-types = { git = "ssh://git@github.com/essential-contributions/essential-base.git" }
+essential-constraint-asm = "0.1.0"
+essential-constraint-vm = "0.1.0"
+essential-hash = "0.1.0"
+essential-sign = "0.1.0"
+essential-state-asm = "0.1.0"
+essential-state-read-vm = "0.1.0"
+essential-types = "0.1.0"
 hex = "0.4.3"
 serde_json = "1"
 tokio = { version = "1.36", features = ["full"] }

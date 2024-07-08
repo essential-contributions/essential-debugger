@@ -1,4 +1,3 @@
-# A dev shell providing the essentials for working on essential-server.
 { cargo-toml-lint
 , clippy
 , essential-debugger
