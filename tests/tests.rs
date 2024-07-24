@@ -9,6 +9,7 @@ use essential_types::{
 };
 
 #[tokio::test]
+#[ignore = "can't run in ci"]
 async fn test_debugger() {
     let predicate = Predicate {
         // State read program to read state slot 0.
