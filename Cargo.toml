@@ -9,7 +9,7 @@ license = "Apache-2.0"
 repository = "https://github.com/essential-contributions/essential-debugger"
 
 [dependencies]
-anyhow = "1.0.86"
+anyhow = "1.0.89"
 clap = { version = "4.5.16", features = ["derive"] }
 dialoguer = { version = "0.11.0", features = ["fuzzy-select", "history"] }
 essential-constraint-asm = "0.3.0"
