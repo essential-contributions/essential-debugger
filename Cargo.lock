@@ -420,9 +420,9 @@ dependencies = [
 
 [[package]]
 name = "essential-asm-gen"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "748f91e7cb72404c41ea8354ca010a6e0ade2132d7ff624f99a6103de1d283ea"
+checksum = "0400c59f6dae404858e9ba90c6ffad5cb120e17975c79f898f90831a1edf46ab"
 dependencies = [
  "essential-asm-spec",
  "essential-types",
@@ -433,9 +433,9 @@ dependencies = [
 
 [[package]]
 name = "essential-asm-spec"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7c81aae90d82e04674453e79941f844968ea418e6e972914560563bf6d3f05c"
+checksum = "ab4d445f618dc2fb3d1fc697f761fd29fdd25079f9d6e3afffcde56e1d694155"
 dependencies = [
  "serde",
  "serde_yaml",
@@ -443,9 +443,9 @@ dependencies = [
 
 [[package]]
 name = "essential-constraint-asm"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "00202b6562f2a581aff2114c3a92ba59d90fe03822b57d3bb7ed52dcb544728c"
+checksum = "fa2e0a6021fb6e408897d692eb7192e83bff7163aab32954a5d8641ce894caa1"
 dependencies = [
  "essential-asm-gen",
  "essential-types",
@@ -454,9 +454,9 @@ dependencies = [
 
 [[package]]
 name = "essential-constraint-vm"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a5217665e29aab6d81d28f0ad076e50481138f352eda877cbfc2aadc57c9b59"
+checksum = "18efe0548153ddbd148231b5da57724f2f6886b74644a48e1669af2bf1fa0de7"
 dependencies = [
  "ed25519-dalek",
  "essential-constraint-asm",
@@ -490,9 +490,9 @@ dependencies = [
 
 [[package]]
 name = "essential-hash"
-version = "0.2.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1cecedffd6292b0b87a6b82bbe04cd5fbb9db06ee893ca7d2b81f91b5a55be38"
+checksum = "3207f8cafbd6eecb6d8c6a29d1ef118320c75e0e59b4b06ccc4205e205a23475"
 dependencies = [
  "essential-types",
  "postcard",
@@ -502,9 +502,9 @@ dependencies = [
 
 [[package]]
 name = "essential-sign"
-version = "0.2.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8296e78787d967590dd3d1799fb30194085a038e5baa128cd7ae0c901cefff90"
+checksum = "0f517663b464d6e20e19b090f4dbe3554cd7eaefb9bf4b4f5b2c2921540f05e6"
 dependencies = [
  "essential-hash",
  "essential-types",
@@ -513,9 +513,9 @@ dependencies = [
 
 [[package]]
 name = "essential-state-asm"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "858651de8c9ec712289d29837e6ca83986d029031bb67cfe0925396d3de8579c"
+checksum = "4d9ef230b57e42c25e7905e8877c40909b89fd9386813fffc3e4d9fdc87750d5"
 dependencies = [
  "essential-asm-gen",
  "essential-constraint-asm",
@@ -524,9 +524,9 @@ dependencies = [
 
 [[package]]
 name = "essential-state-read-vm"
-version = "0.3.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e1335220de5757595c593e1e120800c38092ac3b45aa15fc659c50efd55ec87"
+checksum = "1a16d234ecfe261f4b196eee5fe953cee7a836f7863538e6299490d7945c0be2"
 dependencies = [
  "essential-constraint-vm",
  "essential-state-asm",
@@ -536,9 +536,9 @@ dependencies = [
 
 [[package]]
 name = "essential-types"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74a88d08c793cce8695578a664f6008449387722f10a9330da5e1331c6607a2e"
+checksum = "6c2682829268fbcf5f32289d3e4acaffc40fcd9d90fc7893162b7bb8ecf3219b"
 dependencies = [
  "hex",
  "serde",
@@ -958,18 +958,18 @@ checksum = "61697e0a1c7e512e84a621326239844a24d8207b4669b41bc18b32ea5cbf988b"
 
 [[package]]
 name = "serde"
-version = "1.0.208"
+version = "1.0.210"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cff085d2cb684faa248efb494c39b68e522822ac0de72ccf08109abde717cfb2"
+checksum = "c8e3592472072e6e22e0a54d5904d9febf8508f65fb8552499a1abc7d1078c3a"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.208"
+version = "1.0.210"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24008e81ff7613ed8e5ba0cfaf24e2c2f1e5b8a0495711e44fcd4882fca62bcf"
+checksum = "243902eda00fad750862fc144cea25caca5e20d615af0a81bee94ca738f1df1f"
 dependencies = [
  "proc-macro2",
  "quote",
